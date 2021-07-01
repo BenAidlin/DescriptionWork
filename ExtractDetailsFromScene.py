@@ -51,7 +51,7 @@ class ExtractDetailsFromScene:
             reason = 'N/A'
             time = 'N/A'
             for n in self.mg.clip_graphs[self.clip_num].G.adj[i[1]].keys():
-                if self.mg.clip_graphs[self.clip_num].node_type(n, 'topic') or\
+                if self.mg.clip_graphs[self.clip_num].node_type(n, 'topic') or \
                         self.mg.clip_graphs[self.clip_num].node_type(n, 'attribute'):
                     topic = self.mg.clip_graphs[self.clip_num].node_name(n)
                     dead.append(n)
@@ -199,3 +199,52 @@ class ExtractDetailsFromScene:
         self.attribute_df.to_excel(writer, 'attributes')
         self.rel_df.to_excel(writer, 'relationships')
         writer.save()
+
+    def getSceneBoundaries(self, scenes_gt, video_events):
+        """"
+        returns scene boundaries in a tuple
+        needs to receive paths to .scenes.gt and video.events files
+        """
+        shots = open(scenes_gt, 'r').readlines()
+        time_stamps = open(video_events, 'r').readlines()
+        st = float(time_stamps[int(shots[self.clip_num - 1].split()[0])].split()[1])
+        et = float(time_stamps[int(shots[self.clip_num - 1].split()[1])].split()[1])
+        if et == st:  # this bug happens at some scenes
+            try:
+                et = float(time_stamps[int(shots[self.clip_num].split()[0])].split()[1])
+            except:  # only when scene is last
+                pass
+        return tuple([st, et])
+
+    def getCharacterTime(self, stet):
+        # activate after getSceneBoundaries !
+        """
+        get the time every character appeared in the scene
+        stet is the tuple resulted in getSceneBoundaries
+        """
+        to_ret=[]
+        chars = self.rel_df['PersonX'].to_list()
+        chars += self.rel_df['PersonY'].to_list()
+        chars += self.sum_df['PersonX'].to_list()
+        chars += self.sum_df['PersonY'].to_list()
+        chars += self.int_df['PersonX'].to_list()
+        chars += self.int_df['PersonY'].to_list()
+        chars += self.attribute_df['Person'].to_list()
+        chars = set(chars)
+        for i in chars:
+            to_ret.append((i, stet[0], stet[1]))
+        return to_ret
+
+    def exportPkl(self, pkl_path=''):
+        file = open(pkl_path + self.filmIMDB + '_' + str(self.clip_num)+ '_interaction' +'.pkl', 'wb')
+        pickle.dump(self.int_df, file)
+        file.close()
+        file = open(pkl_path + self.filmIMDB + '_' + str(self.clip_num) + '_summary' + '.pkl', 'wb')
+        pickle.dump(self.sum_df, file)
+        file.close()
+        file = open(pkl_path + self.filmIMDB + '_' + str(self.clip_num) + '_attributes' + '.pkl', 'wb')
+        pickle.dump(self.attribute_df, file)
+        file.close()
+        file = open(pkl_path + self.filmIMDB + '_' + str(self.clip_num) + '_relationships' + '.pkl', 'wb')
+        pickle.dump(self.rel_df, file)
+        file.close()
